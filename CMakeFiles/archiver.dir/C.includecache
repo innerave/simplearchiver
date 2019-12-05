@@ -1,0 +1,20 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/user/simplearchiver/src/archiver.c
+archiver.h
+/home/user/simplearchiver/src/archiver.h
+
+/home/user/simplearchiver/src/archiver.h
+stdio.h
+-
+getopt.h
+-
+unistd.h
+-
+

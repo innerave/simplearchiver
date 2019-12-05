@@ -1,0 +1,4 @@
+/home/user/simplearchiver/CMakeFiles/edit_cache.dir
+/home/user/simplearchiver/CMakeFiles/rebuild_cache.dir
+/home/user/simplearchiver/CMakeFiles/archiver.dir
+/home/user/simplearchiver/CMakeFiles/sarc.dir
