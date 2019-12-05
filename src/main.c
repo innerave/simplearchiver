@@ -4,7 +4,7 @@ int main(int argc, char *argv[])
 {
     int opt;
 
-    while((opt = getopt(argc, argv, ":e:c:")) != -1) {
+    while((opt = getopt(argc, argv, ":ec:")) != -1) {
         switch(opt) {
         case 'e':
             printf("Извлечение из архива : %s\n", optarg);
