@@ -1,4 +1,4 @@
-#include <stdio.h>
+#include "archiver.h"
 
 void build_test()
 {
