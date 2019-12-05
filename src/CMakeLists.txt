@@ -6,14 +6,14 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-project(sarc)
+project(simplearchiver)
 			
 set(SOURCE_EXE main.c)
 		
-set(SOURCE_LIB archiver.cpp)			
+set(SOURCE_LIB archiver.c)			
 
 add_library(archiver STATIC ${SOURCE_LIB})	
 
-add_executable(main ${SOURCE_EXE})	
+add_executable(sarc ${SOURCE_EXE})	
 
-target_link_libraries(main archiver)		
+target_link_libraries(sarc archiver)		
