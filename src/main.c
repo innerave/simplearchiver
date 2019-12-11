@@ -11,6 +11,7 @@ int main(int argc, char *argv[])
             break;
         case 'c':
             printf("Добавление в архив: %s\n", optarg);
+            make_meta(optarg,argv,optind,argc);
             break;
         case ':':
             printf("Требуется имя архива\n");
@@ -20,7 +21,5 @@ int main(int argc, char *argv[])
             break;
         }
     }
-    for(; optind < argc; optind++)
-        printf("Выбран файл: %s\n", argv[optind]);
     return 0;
 }
