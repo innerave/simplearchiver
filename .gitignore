@@ -3,6 +3,8 @@ build/
 doc/
 lib/
 bin/
+src/bin/
+src/lib/
 
 # Prerequisites
 *.d
