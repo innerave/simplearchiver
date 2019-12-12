@@ -8,6 +8,7 @@ int main(int argc, char *argv[])
         switch(opt) {
         case 'e':
             printf("Извлечение из архива : %s\n", optarg);
+            take_meta(optarg);
             break;
         case 'c':
             printf("Добавление в архив: %s\n", optarg);
