@@ -1,13 +1,14 @@
 #include <stdio.h>
 #include <getopt.h>
 #include <unistd.h>
-#include <string.h>
 #include <sys/stat.h>
 #include <string.h>
 #include <stdlib.h>
+#include <errno.h>
 #include <fcntl.h>
+#include <dirent.h>
 
-#define BUF_SIZE 512;
+#define BUF_SIZE 1024
 enum Mode{CREATE=1,EXTRACT};
 struct meta_data
 {
@@ -24,5 +25,7 @@ struct meta_data
 // рекурсивное создание директорий
 int r_mkdir(const char * dir);
 int create_arch(char *arch_name);
-int write_file_to_arch(char *file,int arch_fd);
-int write_path_to_arch(char *path,int arch_fd);
+int write_to_arch(int arch_fd,char *name);
+int write_file_to_arch(int arch_fd,char *file);
+int write_dir_to_arch(int arch_fd,char *dir);
+int end_of_arch(int arch_fd);

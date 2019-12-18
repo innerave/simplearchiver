@@ -24,7 +24,7 @@ int r_mkdir(const char * dir){
             *p = '\0';
 
             if ((return_code = mkdir(path, DIR_MODE))){
-                sprintf("Невозможно создать директорию %s: %s", path, strerror(return_code));
+                printf("Невозможно создать директорию %s: %s", path, strerror(return_code));
             }
 
             *p = '/';
@@ -32,63 +32,68 @@ int r_mkdir(const char * dir){
     }
 
     if (mkdir(path, DIR_MODE) < 0){
-        sprintf("Невозможно создать директорию %s: %s", path, strerror(return_code));
+        printf("Невозможно создать директорию %s: %s", path, strerror(return_code));
     }
 
     free(path);
     return 0;
 }
-
+//создаем архив и ворзвращаем его дескриптор
 int create_arch(char *arch_name){
-	int arch_fd, len;
-
-	arch_fd = creat(arch_name, DIR_MODE);
+	int arch_fd = creat(arch_name, DIR_MODE);
 	if (arch_fd == -1) {
 		perror("создание архива");
 		return 1;
 	}
-
-	struct stat fstat;
-	stat(name, &fstat);
-	if (S_ISDIR(fstat.st_mode)) {
-		char path[PATH_MAX];
-		len = strlen(name);
-		strcpy(path, name);
-		if (path[len-1] != '/') strcat(path, "/");
-		write_path_to_arch(path, arch_fd);
-	} else
-		write_file_to_arch(name, arch_fd);
-
-	struct meta_data header;
-	len = write(arch_fd, &header, sizeof(struct meta_data));
-	if (len == -1) {
+	return arch_fd;
+}
+//записываем конечный нулевой хэдэр и закрываем архив
+int end_of_arch(int arch_fd){
+	struct meta_data header={0};
+	if ( write(arch_fd, &header, sizeof(struct meta_data)) == -1) {
 		perror("запись конечного header");
 		return 2;
 	}
 	close(arch_fd);
+	return 0;
 }
 
-int write_file_to_arch(char *file,int arch_fd){
+int write_to_arch(int arch_fd, char *name){
 	struct stat fstat;
-	stat(file,%fstat);
+	stat(name, &fstat);
 
+	if (S_ISDIR(fstat.st_mode)) {				//смотрим если директория
+		char path[PATH_MAX];
+		strcpy(path, name);
+		if (path[strlen(name)-1] != '/') strcat(path, "/");		//дописываем путь до нужного формата
+		write_dir_to_arch(arch_fd, path);				//записываем директорию
+	} else {
+		write_file_to_arch(arch_fd, name);				//записываем файл
+	}
+	return 0;
+}
+
+int write_file_to_arch(int arch_fd,char *file){
 	struct meta_data header;
-	strcpy(header.name,path);
+	struct stat fstat;
+	stat(file, &fstat);
+	//формируем хэдер
+	strcpy(header.name,file);	
 	header.size=fstat.st_size;
 	header.mode=fstat.st_mode;
-	if (write(arch_fd,%header,sizeof(struct meta_data))==-1){
+	//записываем хэдер
+	if (write(arch_fd, &header,sizeof(struct meta_data))==-1){
 		perror("ошибка записи header");
 		return 1;
 	}
-
+	//открываем файл, который будем архивировать
 	int fd=open(file,O_RDONLY);
 	if (fd == -1){
 		perror("ошибка открытия файла");
 		return 2;
 	}
-
-	void buf[BUF_SIZE];
-	errno=0;
+	//поблочно (BUF_SIZE) переписываем из файла в архив
+	void *buf[BUF_SIZE];
 	int len_r,len_w;
 	while ((len_r = read(fd, buf, BUF_SIZE)) > 0) {
 		len_w = write(arch_fd, buf, len_r);
@@ -98,8 +103,45 @@ int write_file_to_arch(char *file,int arch_fd){
 		}
 	}
 
+	close(fd);
 	return 0;
 }
-int write_path_to_arch(char *path,int arch_fd){
+//селектор, фильтруем ссылки на преддериктории
+static int selector(const struct dirent *entry){
+	if (strcmp(entry->d_name, ".") == 0) return 0;
+	if (strcmp(entry->d_name, "..") == 0) return 0;
+	return 1;
+}
+
+int write_dir_to_arch(int arch_fd,char *dir){
+	struct meta_data header;
+	struct stat dstat;
+	//формируем хэдер
+	stat(dir, &dstat);
+	strcpy(header.name, dir);
+	header.size=0;
+	header.mode=dstat.st_mode;
+	//записываем хэдер
+	if (write(arch_fd, &header, sizeof(struct meta_data))==-1){
+		perror("ошибка записи header");
+		return 1;
+	}
+	//тут кароч низкоуровнего обходим папку (без потоков)
+ 	struct dirent **eps;
+ 	//смысл шо получаем список элеметов уровня dir (alphasort - стандартная функция , есть еще timesort)
+	int n = scandir (dir, &eps, selector, alphasort);
+ 	if (n >= 0)
+ 	  {
+ 	    int cnt;			
+ 	    for (cnt = 0; cnt < n; ++cnt){
+			char path[PATH_MAX];
+			strcpy(path, dir);
+			strcat(path, eps[cnt]->d_name);				//eps[cnt]->d_name - текущий элемент
+ 	    	write_to_arch(arch_fd, path);			//обрабатываем новый элемент (тк может быть как файлом так и папкой)
+ 	    }
+ 	  }
+ 	else
+ 	  perror ("Couldn't open the directory");
+
 	return 0;
 }

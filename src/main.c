@@ -32,14 +32,16 @@ int main(int argc, char *argv[])
         }
         if (mode==-1) return 1;
         if (mode==CREATE){
-            create_arch(arch);
             if (optind>=argc) {
                 printf("Требуется выбрать файлы для добавления в архив\n");
                 return 2;
             }
+            int arch_fd=create_arch(arch);
             for(; optind < argc; optind++){
                 printf("Выбранные файлы: %s\n", argv[optind]);
+                write_to_arch(arch_fd, argv[optind]);
             }
+            end_of_arch(arch_fd);
         }
         if (mode==EXTRACT)  {
             /* code */
