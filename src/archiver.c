@@ -171,7 +171,10 @@ int extract_file(int arch_fd, char *name, off_t size)
 		printf("Файл существует, перезаписать? [y/n]: ");
 		c=toupper(getchar());
 		if (c!='Y') {
-			if (lseek(arch_fd, size, SEEK_CUR)==-1) abort();
+			if (lseek(arch_fd, size, SEEK_CUR)==-1) {
+				perror("чтение архива");
+				abort();
+			}
 			return 1;
 		}
 		while (c != '\n' && c != EOF) c=getchar();
