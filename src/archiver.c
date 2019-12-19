@@ -11,19 +11,19 @@ int create_arch(char *arch_name){
 		while (c != '\n' && c != EOF) c=getchar();
 		if (answ!='Y') {
 			errno=EEXIST;
-			perror("файл существует");
+			perror("Ошибка существования файла");
 			return -1;
 		}
 	}
 	arch_fd = creat(arch_name, DIR_MODE);
-	if (arch_fd == -1) perror("создание архива");
+	if (arch_fd == -1) perror("Ошибка создание архива");
 	return arch_fd;
 }
 //записываем конечный нулевой хэдэр и закрываем архив
 int end_of_arch(int arch_fd){
 	struct meta_data header={0};
 	if ( write(arch_fd, &header, sizeof(struct meta_data)) == -1) {
-		perror("запись конечного header");
+		perror("Ошибка запись конечного header");
 		return 1;
 	}
 	close(arch_fd);
@@ -34,10 +34,9 @@ int write_to_arch(int arch_fd, char *name){
 	struct stat fstat;
 	stat(name, &fstat);
 	if (access(name, F_OK)==-1){
-		perror("файла не существует");
-		return 1;
+		perror("Ошибка существование файла");
+		return -1;
 	}
-	printf("Запись в архив %s\n",name);
 	if (S_ISDIR(fstat.st_mode)) {				//смотрим если директория
 		char path[PATH_MAX];
 		strcpy(path, name);
@@ -59,13 +58,13 @@ int write_file_to_arch(int arch_fd,char *file){
 	header.mode=fstat.st_mode;
 	//записываем хэдер
 	if (write(arch_fd, &header,sizeof(struct meta_data))==-1){
-		perror("ошибка записи header");
+		perror("Ошибка Ошибказапись header");
 		return 1;
 	}
 	//открываем файл, который будем архивировать
 	int fd=open(file, O_RDONLY);
 	if (fd == -1){
-		perror("ошибка открытия файла");
+		perror("Ошибка открытие файла");
 		return 2;
 	}
 	//поблочно! (BUF_SIZE) переписываем из файла в архив
@@ -74,7 +73,7 @@ int write_file_to_arch(int arch_fd,char *file){
 	while ((len_r = read(fd, buf, BUF_SIZE)) > 0) {
 		len_w = write(arch_fd, buf, len_r);
 		if (len_r != len_w) {
-			perror("ошибка записи");
+			perror("Ошибка Ошибка копирование файла");
 			return 3;
 		}
 	}
@@ -98,7 +97,7 @@ int write_dir_to_arch(int arch_fd,char *dir){
 	header.mode=dstat.st_mode;
 	//записываем хэдер
 	if (write(arch_fd, &header, sizeof(struct meta_data))==-1){
-		perror("ошибка записи header");
+		perror("Ошибка записи header");
 		return 1;
 	}
 	//тут кароч низкоуровнего обходим папку (без потоков)
@@ -116,7 +115,7 @@ int write_dir_to_arch(int arch_fd,char *dir){
  	    }
  	  }
  	else
- 	  perror ("Couldn't open the directory");
+ 	  perror("Ошибка открытия директории");
 
 	return 0;
 }
@@ -124,12 +123,12 @@ int extract_from_arch(char *arch_name){
 	int arch_fd;
 	//проверка на существование архива
 	if (access(arch_name, F_OK)==-1){
-		perror("файла не существует");
+		perror("Ошибка существования файла");
 		return 1;
 	}
 	arch_fd=open(arch_name, O_RDONLY);
 	if (arch_fd == -1){
-		perror("ошибка открытия файла");
+		perror("Ошибка открытия файла");
 		return 2;
 	}
 
@@ -157,7 +156,7 @@ int extract_dir(int arch_fd,char *name)
 		return 0;
 	}
 	if (mkdir(name, DIR_MODE)==-1) {
-		perror("создание папки");
+		perror("Ошибка создания папки");
 		return 1;
 	}
 	return 0;
@@ -177,8 +176,8 @@ int extract_file(int arch_fd,  struct meta_data header)
 		while (c != '\n' && c != EOF) c=getchar();
 		if (answ!='Y') {
 			if (lseek(arch_fd, size, SEEK_CUR)==-1) {
-				perror("чтение архива");
-				abort();
+				perror("Ошибка чтения архива");
+				abort();		//аварийное прерывание тк, последущая разархивация невозможна
 			}
 			return 1;
 		}
@@ -193,7 +192,7 @@ int extract_file(int arch_fd,  struct meta_data header)
 		len_r=read(arch_fd, buf, BUF_SIZE_CURR);
 		len_w=write(fd, buf, len_r);
 		if (len_r != len_w) {
-			perror("ошибка записи");
+			perror("Ошибка копирования файла");
 			return 2;
 		}
 		size-=BUF_SIZE_CURR;

@@ -38,10 +38,10 @@ int main(int argc, char *argv[])
             }
             int arch_fd=create_arch(arch);
             if (arch_fd==-1) return 3;
-            printf("Выбранные файлы: %s", argv[optind]);
-            for(int optind_=optind+1; optind_ < argc; optind_++) printf(", %s", argv[optind_]);
-            printf("\n");
-            for(int optind_=optind; optind_ < argc; optind_++) write_to_arch(arch_fd, argv[optind_]);
+            for(int optind_=optind; optind_ < argc; optind_++) {
+                printf("Запись файла: %s\n", argv[optind_]);
+                write_to_arch(arch_fd, argv[optind_]);
+            } 
             end_of_arch(arch_fd);
         }
         if (mode==EXTRACT)  {
