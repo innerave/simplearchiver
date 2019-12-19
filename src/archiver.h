@@ -14,7 +14,7 @@
 #include <time.h>
 
 #define BUF_SIZE 2048
-enum Mode{CREATE=1,EXTRACT};
+enum Mode{HELP=1 ,CREATE, EXTRACT};
 struct meta_data
 {
 	char name[PATH_MAX];

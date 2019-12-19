@@ -9,7 +9,7 @@ int main(int argc, char *argv[])
         optind – индекс на следующий указатель argv, который будет обработан при следующем вызове getopt().
         optopt – нераспознанная опция.
         argv[optind] – и далее – собранные файлы*/
-    while((opt = getopt(argc, argv, ":e:c:")) != -1) {
+    while((opt = getopt(argc, argv, ":e:c:h")) != -1) {
         switch(opt) {
         case 'e':
             printf("Извлечение из архива : %s\n", optarg);
@@ -21,6 +21,9 @@ int main(int argc, char *argv[])
             arch=optarg;
             mode=CREATE;
             break;
+        case 'h':
+            mode=HELP;
+            break;
         case ':':
             printf("Требуется имя архива\n");
             break;
@@ -30,7 +33,12 @@ int main(int argc, char *argv[])
         default:
             abort();
         }
-        if (mode==-1) return 1;
+        if (mode==HELP) {
+            printf("Использование:\n");
+            printf("./arch -e {имя_архива}                                извлечение из архива\n");
+            printf("./arch -c {имя_архива} {файл1} {файл2} {файл3} ...    создание архива\n");
+            return 0;
+        }
         if (mode==CREATE){
             if (optind>=argc) {
                 printf("Требуется выбрать файлы для добавления в архив\n");
