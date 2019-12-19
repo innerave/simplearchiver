@@ -1,50 +1,21 @@
 #include "archiver.h"
 
-
-// рекурсивное создание директорий
-int r_mkdir(const char * dir){
-    int return_code = 0;
-    const size_t len = strlen(dir);
-
-    if (!len){
-        return 0;
-    }
-
-    char * path = calloc(len + 1, sizeof(char));
-    strncpy(path, dir, len);
-
-    // удаление '/'
-    if (path[len - 1] ==  '/'){
-        path[len - 1] = 0;
-    }
-
-    // все последующие каталоги не существуют
-    for(char * p = path + 1; *p; p++){
-        if (*p == '/'){
-            *p = '\0';
-
-            if ((return_code = mkdir(path, DIR_MODE))){
-                printf("Невозможно создать директорию %s: %s", path, strerror(return_code));
-            }
-
-            *p = '/';
-        }
-    }
-
-    if (mkdir(path, DIR_MODE) < 0){
-        printf("Невозможно создать директорию %s: %s", path, strerror(return_code));
-    }
-
-    free(path);
-    return 0;
-}
-//создаем архив и ворзвращаем его дескриптор
+//создаем архив и возвращаем его дескриптор
 int create_arch(char *arch_name){
-	int arch_fd = creat(arch_name, DIR_MODE);
-	if (arch_fd == -1) {
-		perror("создание архива");
-		return 1;
+	int arch_fd;
+	if (access(arch_name, F_OK)==0){
+		int c;
+		printf("Файл существует, перезаписать? [y/n]: ");
+		c=toupper(getchar());
+		if (c!='Y') {
+			errno=EEXIST;
+			perror("файл существует");
+			return -1;
+		}
+		while (c != '\n' && c != EOF) c=getchar();
 	}
+	arch_fd = creat(arch_name, DIR_MODE);
+	if (arch_fd == -1) perror("создание архива");
 	return arch_fd;
 }
 //записываем конечный нулевой хэдэр и закрываем архив
@@ -61,7 +32,11 @@ int end_of_arch(int arch_fd){
 int write_to_arch(int arch_fd, char *name){
 	struct stat fstat;
 	stat(name, &fstat);
-
+	if (access(name, F_OK)==-1){
+		perror("файла не существует");
+		return 1;
+	}
+	printf("Запись в архив %s\n",name);
 	if (S_ISDIR(fstat.st_mode)) {				//смотрим если директория
 		char path[PATH_MAX];
 		strcpy(path, name);
@@ -87,18 +62,18 @@ int write_file_to_arch(int arch_fd,char *file){
 		return 1;
 	}
 	//открываем файл, который будем архивировать
-	int fd=open(file,O_RDONLY);
+	int fd=open(file, O_RDONLY);
 	if (fd == -1){
 		perror("ошибка открытия файла");
 		return 2;
 	}
-	//поблочно (BUF_SIZE) переписываем из файла в архив
+	//поблочно! (BUF_SIZE) переписываем из файла в архив
 	void *buf[BUF_SIZE];
-	int len_r,len_w;
+	ssize_t len_r,len_w;
 	while ((len_r = read(fd, buf, BUF_SIZE)) > 0) {
 		len_w = write(arch_fd, buf, len_r);
 		if (len_r != len_w) {
-			printf("ошибка записи");
+			perror("ошибка записи");
 			return 3;
 		}
 	}
@@ -114,12 +89,11 @@ static int selector(const struct dirent *entry){
 }
 
 int write_dir_to_arch(int arch_fd,char *dir){
-	struct meta_data header;
+	struct meta_data header={0};
 	struct stat dstat;
 	//формируем хэдер
 	stat(dir, &dstat);
 	strcpy(header.name, dir);
-	header.size=0;
 	header.mode=dstat.st_mode;
 	//записываем хэдер
 	if (write(arch_fd, &header, sizeof(struct meta_data))==-1){
@@ -143,5 +117,81 @@ int write_dir_to_arch(int arch_fd,char *dir){
  	else
  	  perror ("Couldn't open the directory");
 
+	return 0;
+}
+int extract_from_arch(char *arch_name){
+	int arch_fd;
+	//проверка на существование архива
+	if (access(arch_name, F_OK)==-1){
+		perror("файла не существует");
+		return 1;
+	}
+	arch_fd=open(arch_name, O_RDONLY);
+	if (arch_fd == -1){
+		perror("ошибка открытия файла");
+		return 2;
+	}
+
+	struct meta_data header;
+	ssize_t len;
+	// обрабатываем файлы
+	while (len=read(arch_fd,&header,sizeof(struct meta_data))>0) {
+		if (header.size==0 && strlen(header.name)==0) break;		//проверка на конец архива
+		printf("Извлечение: %s\n", header.name);
+		if (S_ISDIR(header.mode)){
+			extract_dir(arch_fd, header.name);
+		} else {
+			extract_file(arch_fd, header.name, header.size);
+		}
+	}
+
+	close(arch_fd);
+	return 0;
+}
+
+int extract_dir(int arch_fd,char *name)
+{
+	if (access(name, F_OK)==0){
+		printf("Папка существует\n");
+		return 0;
+	}
+	if (mkdir(name, DIR_MODE)==-1) {
+		perror("создание папки");
+		return 1;
+	}
+	return 0;
+}
+
+int extract_file(int arch_fd, char *name, off_t size)
+{
+	int fd;
+	//если файл существует
+	if (access(name, F_OK)==0){
+		int c;
+		printf("Файл существует, перезаписать? [y/n]: ");
+		c=toupper(getchar());
+		if (c!='Y') {
+			if (lseek(arch_fd, size, SEEK_CUR)==-1) abort();
+			return 1;
+		}
+		while (c != '\n' && c != EOF) c=getchar();
+	}
+	//создаем или перезаписываем файл
+	fd=creat(name, DIR_MODE);
+	//побитово копируем из архива в созданный файл size-байтов
+	while (size>0){
+		ssize_t len_r,len_w;
+		const off_t BUF_SIZE_CURR=(size<BUF_SIZE)?size:BUF_SIZE;
+		void *buf[BUF_SIZE_CURR];
+		len_r=read(arch_fd, buf, BUF_SIZE_CURR);
+		len_w=write(fd, buf, len_r);
+		if (len_r != len_w) {
+			perror("ошибка записи");
+			return 2;
+		}
+		size-=BUF_SIZE_CURR;
+	}
+
+	close(fd);
 	return 0;
 }

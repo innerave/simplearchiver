@@ -37,6 +37,7 @@ int main(int argc, char *argv[])
                 return 2;
             }
             int arch_fd=create_arch(arch);
+            if (arch_fd==-1) return 3;
             for(; optind < argc; optind++){
                 printf("Выбранные файлы: %s\n", argv[optind]);
                 write_to_arch(arch_fd, argv[optind]);
@@ -44,7 +45,7 @@ int main(int argc, char *argv[])
             end_of_arch(arch_fd);
         }
         if (mode==EXTRACT)  {
-            /* code */
+            extract_from_arch(arch);
         }
     }
     return 0;
