@@ -7,12 +7,13 @@ int create_arch(char *arch_name){
 		int c;
 		printf("Файл существует, перезаписать? [y/n]: ");
 		c=toupper(getchar());
-		if (c!='Y') {
+		int answ=c;
+		while (c != '\n' && c != EOF) c=getchar();
+		if (answ!='Y') {
 			errno=EEXIST;
 			perror("файл существует");
 			return -1;
 		}
-		while (c != '\n' && c != EOF) c=getchar();
 	}
 	arch_fd = creat(arch_name, DIR_MODE);
 	if (arch_fd == -1) perror("создание архива");
@@ -23,7 +24,7 @@ int end_of_arch(int arch_fd){
 	struct meta_data header={0};
 	if ( write(arch_fd, &header, sizeof(struct meta_data)) == -1) {
 		perror("запись конечного header");
-		return 2;
+		return 1;
 	}
 	close(arch_fd);
 	return 0;
@@ -141,7 +142,7 @@ int extract_from_arch(char *arch_name){
 		if (S_ISDIR(header.mode)){
 			extract_dir(arch_fd, header.name);
 		} else {
-			extract_file(arch_fd, header.name, header.size);
+			extract_file(arch_fd, header);
 		}
 	}
 
@@ -162,22 +163,25 @@ int extract_dir(int arch_fd,char *name)
 	return 0;
 }
 
-int extract_file(int arch_fd, char *name, off_t size)
+int extract_file(int arch_fd,  struct meta_data header)
 {
+	char *name=header.name;
+	off_t size=header.size;
 	int fd;
 	//если файл существует
 	if (access(name, F_OK)==0){
 		int c;
 		printf("Файл существует, перезаписать? [y/n]: ");
 		c=toupper(getchar());
-		if (c!='Y') {
+		int answ=c;
+		while (c != '\n' && c != EOF) c=getchar();
+		if (answ!='Y') {
 			if (lseek(arch_fd, size, SEEK_CUR)==-1) {
 				perror("чтение архива");
 				abort();
 			}
 			return 1;
 		}
-		while (c != '\n' && c != EOF) c=getchar();
 	}
 	//создаем или перезаписываем файл
 	fd=creat(name, DIR_MODE);
