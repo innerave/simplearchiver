@@ -14,24 +14,33 @@
 #include <time.h>
 
 #define BUF_SIZE 2048
-enum Mode{HELP=1 ,CREATE, EXTRACT};
-struct meta_data
-{
-	char name[PATH_MAX];
-	off_t size;
-	mode_t mode;
+enum Mode {
+        HELP = 1, CREATE, EXTRACT
+};
+struct meta_data {
+        char   name[PATH_MAX];
+        off_t  size;
+        mode_t mode;
 };
 #define DIR_MODE S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH
+
 /*	файловые биты используются для определения типа файла.
 	S_IRWXU чтение, запись, выполнение / поиск владельцем
 	S_IRGRP разрешение на чтение
-	S_IXGRP разрешение на выполнение / поиск 
+	S_IXGRP разрешение на выполнение / поиск
 */
 int create_arch(char *arch_name);
-int write_to_arch(int arch_fd,char *name);
-int write_file_to_arch(int arch_fd,char *file);
-int write_dir_to_arch(int arch_fd,char *dir);
+
+int write_to_arch(int arch_fd, char *name);
+
+int write_file_to_arch(int arch_fd, char *file);
+
+int write_dir_to_arch(int arch_fd, char *dir);
+
 int end_of_arch(int arch_fd);
+
 int extract_from_arch(char *arch_name);
-int extract_dir(int arch_fd,char *name);
+
+int extract_dir(int arch_fd, char *name);
+
 int extract_file(int arch_fd, struct meta_data header);
