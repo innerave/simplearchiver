@@ -197,7 +197,7 @@ int write_dir_to_arch(int arch_fd, char *dir) {
                 for (cnt = 0; cnt < n; ++cnt) {
                         char path[PATH_MAX];
                         strcpy(path, dir);
-                        /* eps[cnt]->d_name - текущий элемент */
+                        /* eps[cnt]-> d_name текущий элемент */
                         strcat(path, eps[cnt]->d_name);
                         /*
                          * обрабатываем новый элемент
@@ -233,7 +233,7 @@ int write_dir_to_arch(int arch_fd, char *dir) {
  */
 int extract_from_arch(char *arch_name) {
         int arch_fd;
-        // проверка на существование архива
+        /* проверка на существование архива */
         if (access(arch_name, F_OK) == -1) {
                 perror("Ошибка существования файла");
                 return -1;
