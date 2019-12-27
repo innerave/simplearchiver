@@ -1,7 +1,7 @@
 # simplearchiver
 
 Убедительная просьба, компилить так: <br />
-cmake $PWD/src  <br/>
+cmake ./src  <br/>
 make
 
 Запуск программы<br/>
