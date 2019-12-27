@@ -1,7 +1,7 @@
 # simplearchiver
 
 Убедительная просьба, компилить так: <br />
-cmake ./src  <br/>
+cmake ./src <br/>
 make
 
 Запуск программы<br/>
