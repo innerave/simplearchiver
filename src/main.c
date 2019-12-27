@@ -49,7 +49,6 @@ int main(int argc, char *argv[]) {
                                 return 2;
                         }
                         int arch_fd = create_arch(arch);
-                        if (arch_fd == -1) return 3;
                         for (int optind_ = optind; optind_ < argc; optind_++) {
                                 printf("Запись файла: %s\n", argv[optind_]);
                                 write_to_arch(arch_fd, argv[optind_]);

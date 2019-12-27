@@ -1,2 +1,0 @@
-/usr/bin/ar qc lib/libarchiver.a  CMakeFiles/archiver.dir/archiver.c.o
-/usr/bin/ranlib lib/libarchiver.a

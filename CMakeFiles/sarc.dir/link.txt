@@ -1,1 +1,0 @@
-/usr/bin/cc   -rdynamic CMakeFiles/sarc.dir/main.c.o  -o bin/sarc lib/libarchiver.a 

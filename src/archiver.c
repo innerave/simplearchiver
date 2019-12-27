@@ -1,6 +1,15 @@
 #include "archiver.h"
 
-//создаем архив и возвращаем его дескриптор
+/**
+ * create_arch() - создание архива
+ * @arch_name:  Имя архива
+ *
+ * Создаем архив и возвращаем дескриптор
+ * 
+ * Return:
+ * -1: Не был создан архив
+ *  _: Значение дескриптора архива
+ */
 int create_arch(char *arch_name) {
         int arch_fd;
         if (access(arch_name, F_OK) == 0) {
@@ -11,31 +20,49 @@ int create_arch(char *arch_name) {
                 while (c != '\n' && c != EOF) c = getchar();
                 if (answ != 'Y') {
                         errno = EEXIST;
-                        perror("Ошибка существования файла");
-                        return -1;
+                        perror("Ошибка создания архива");
+                        exit(EXIT_FAILURE);
                 }
         }
         arch_fd = creat(arch_name, DIR_MODE);
-        if (arch_fd == -1) perror("Ошибка создания архива");
+        if(arch_fd=-1) {
+                perror("Ошибка создания архива");
+                exit(EXIT_FAILURE);
+        }
         return arch_fd;
 }
 
-//записываем конечный нулевой хэдэр и закрываем архив
+/**
+ * sample()
+ * @:
+ * 
+ * 
+ * 
+ * Return:
+ */
 int end_of_arch(int arch_fd) {
         struct meta_data header = {0};
         if (write(arch_fd, &header, sizeof(struct meta_data)) == -1) {
                 perror("Ошибка записи");
-                return 1;
+                return -1;
         }
         close(arch_fd);
         return 0;
 }
 
+/**
+ * sample()
+ * @:
+ * 
+ * 
+ * 
+ * Return:
+ */
 int write_to_arch(int arch_fd, char *name) {
         struct stat fstat;
         stat(name, &fstat);
         if (access(name, F_OK) == -1) {
-                perror("Ошибка существование файла");
+                perror("Ошибка открытия файла");
                 return -1;
         }
         //смотрим если директория
@@ -53,6 +80,14 @@ int write_to_arch(int arch_fd, char *name) {
         return 0;
 }
 
+/**
+ * sample()
+ * @:
+ * 
+ * 
+ * 
+ * Return:
+ */
 int write_file_to_arch(int arch_fd, char *file) {
         struct meta_data header;
         struct stat fstat;
@@ -64,13 +99,17 @@ int write_file_to_arch(int arch_fd, char *file) {
         //записываем хэдер
         if (write(arch_fd, &header, sizeof(struct meta_data)) == -1) {
                 perror("Ошибка записи");
-                return 1;
+                return -1;
         }
         //открываем файл, который будем архивировать
         int fd = open(file, O_RDONLY);
         if (fd == -1) {
                 perror("Ошибка открытия файла");
-                return 2;
+                if (lseek(arch_fd, -sizeof(struct meta_data), SEEK_CUR) == -1) {
+                        perror("Ошибка чтения архива");
+                        exit(EXIT_FAILURE);
+                }
+                return -2;
         }
         //поблочно! (BUF_SIZE) переписываем из файла в архив
         void *buf[BUF_SIZE];
@@ -79,7 +118,7 @@ int write_file_to_arch(int arch_fd, char *file) {
                 len_w = write(arch_fd, buf, len_r);
                 if (len_r != len_w) {
                         perror("Ошибка копирования файла");
-                        return 3;
+                        return -3;
                 }
         }
 
@@ -87,13 +126,23 @@ int write_file_to_arch(int arch_fd, char *file) {
         return 0;
 }
 
-//селектор, фильтруем ссылки на преддериктории
+/**
+ * в selector фильтруем ненужные директории (текущая и наддиректория)
+ */
 static int selector(const struct dirent *entry) {
         if (strcmp(entry->d_name, ".") == 0) return 0;
         if (strcmp(entry->d_name, "..") == 0) return 0;
         return 1;
 }
 
+/**
+ * sample()
+ * @:
+ * 
+ * 
+ * 
+ * Return:
+ */
 int write_dir_to_arch(int arch_fd, char *dir) {
         struct meta_data header = {0};
         struct stat dstat;
@@ -106,10 +155,10 @@ int write_dir_to_arch(int arch_fd, char *dir) {
                 perror("Ошибка записи");
                 return 1;
         }
-        //тут кароч низкоуровнего обходим папку (без потоков)
+        /*
+         * получаем список элеметов уровня dir
+         */
         struct dirent **eps;
-        //получаем список элеметов уровня dir (alphasort - стандартная функция)
-
         int n = scandir(dir, &eps, selector, alphasort);
         if (n >= 0) {
                 int cnt;
@@ -128,6 +177,14 @@ int write_dir_to_arch(int arch_fd, char *dir) {
         return 0;
 }
 
+/**
+ * sample()
+ * @:
+ * 
+ * 
+ * 
+ * Return:
+ */
 int extract_from_arch(char *arch_name) {
         int arch_fd;
         //проверка на существование архива
@@ -144,7 +201,7 @@ int extract_from_arch(char *arch_name) {
         struct meta_data header;
         ssize_t len;
         // обрабатываем файлы
-        while (len = read(arch_fd, &header, sizeof(struct meta_data)) > 0) {
+        while ((len = read(arch_fd, &header, sizeof(struct meta_data))) > 0) {
                 if (header.size == 0 && strlen(header.name) == 0) break;
                 //проверка на конец архива
                 printf("Извлечение: %s\n", header.name);
@@ -159,6 +216,14 @@ int extract_from_arch(char *arch_name) {
         return 0;
 }
 
+/**
+ * sample()
+ * @:
+ * 
+ * 
+ * 
+ * Return:
+ */
 int extract_dir(int arch_fd, char *name) {
         if (access(name, F_OK) == 0) {
                 printf("Папка существует\n");
@@ -171,6 +236,14 @@ int extract_dir(int arch_fd, char *name) {
         return 0;
 }
 
+/**
+ * sample()
+ * @:
+ * 
+ * 
+ * 
+ * Return:
+ */
 int extract_file(int arch_fd, struct meta_data header) {
         char *name = header.name;
         off_t size = header.size;
