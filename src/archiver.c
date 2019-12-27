@@ -1,6 +1,15 @@
 #include "archiver.h"
 
 /**
+ * Поскольку используем старые библиотеки, 
+ * copy_file_range приходиться вызывать через syscall
+ */
+static loff_t copy_file_range(int fd_in, loff_t *off_in, int fd_out, loff_t *off_out, size_t len, unsigned int flags)
+{
+    return syscall(__NR_copy_file_range, fd_in, off_in, fd_out, off_out, len, flags);
+}
+
+/**
  * create_arch() - создание архива
  * @arch_name:  Имя архива
  *
@@ -33,12 +42,14 @@ int create_arch(char *arch_name) {
 }
 
 /**
- * sample()
- * @:
+ * end_of_arch() - конец работы с архивом
+ * @arch_fd:    Дескриптор архива
  * 
- * 
+ * Записываем конечный нулевой header и закрываем архив
  * 
  * Return:
+ * -1: Ошибка записи
+ *  0: Успешное
  */
 int end_of_arch(int arch_fd) {
         struct meta_data header = {0};
@@ -51,11 +62,20 @@ int end_of_arch(int arch_fd) {
 }
 
 /**
- * sample()
- * @:
+ * write_to_arch() - обработка файла для записи
+ * @arch_fd:    Дескриптор архива
+ * @name:       Имя файла
  * 
+ * Обрабатываем файл для архивации
+ * проверяем файл на наличие, читаем метаданные
+ *
+ * если файл является папкой: 
+ * дополняем имя файла "/" (если не было указано),
+ * и передаем имя файла в write_dir_to_arch 
  * 
- * 
+ * если файл не является папкой:
+ * передаем имя файла в write_file_to_arch 
+ *
  * Return:
  */
 int write_to_arch(int arch_fd, char *name) {
@@ -81,9 +101,11 @@ int write_to_arch(int arch_fd, char *name) {
 }
 
 /**
- * sample()
- * @:
+ * write_file_to_arch() - запись файла в архив
+ * @arch_fd:            дескриптор архива
+ * @file:               имя файла
  * 
+ * Читаем метаданные файла ()
  * 
  * 
  * Return:
@@ -111,15 +133,12 @@ int write_file_to_arch(int arch_fd, char *file) {
                 }
                 return -2;
         }
-        //поблочно! (BUF_SIZE) переписываем из файла в архив
-        void *buf[BUF_SIZE];
-        ssize_t len_r, len_w;
-        while ((len_r = read(fd, buf, BUF_SIZE)) > 0) {
-                len_w = write(arch_fd, buf, len_r);
-                if (len_r != len_w) {
-                        perror("Ошибка копирования файла");
-                        return -3;
-                }
+        /*
+         * Копируем содержимое файла в архив
+         */
+        if (copy_file_range(fd, NULL, arch_fd, NULL, fstat.st_size, 0) == -1) {
+            perror("Ошибка копирования файла");
+            exit(EXIT_FAILURE);
         }
 
         close(fd);
@@ -267,19 +286,10 @@ int extract_file(int arch_fd, struct meta_data header) {
         }
         //создаем или перезаписываем файл
         fd = creat(name, DIR_MODE);
-        //побитово копируем из архива в созданный файл size-байтов
-        while (size > 0) {
-                ssize_t len_r, len_w;
-                const off_t BUF_SIZE_CURR =
-                        (size < BUF_SIZE) ? size : BUF_SIZE;
-                void *buf[BUF_SIZE_CURR];
-                len_r = read(arch_fd, buf, BUF_SIZE_CURR);
-                len_w = write(fd, buf, len_r);
-                if (len_r != len_w) {
-                        perror("Ошибка копирования файла");
-                        return 2;
-                }
-                size -= BUF_SIZE_CURR;
+        
+        if (copy_file_range(arch_fd, NULL, fd, NULL, size, 0) == -1) {
+            perror("Ошибка копирования файла");
+            exit(EXIT_FAILURE);
         }
 
         close(fd);
