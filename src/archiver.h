@@ -26,6 +26,7 @@ struct meta_data {
         mode_t mode;
 };
 
+
 #define DIR_MODE S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH
 
 int create_arch(char *arch_name);
