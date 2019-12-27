@@ -34,7 +34,7 @@ int create_arch(char *arch_name) {
                 }
         }
         arch_fd = creat(arch_name, DIR_MODE);
-        if(arch_fd=-1) {
+        if(arch_fd == -1) {
                 perror("Ошибка создания архива");
                 exit(EXIT_FAILURE);
         }
@@ -49,7 +49,7 @@ int create_arch(char *arch_name) {
  * 
  * Return:
  * -1: Ошибка записи
- *  0: Успешное
+ *  0: Нет ошибок
  */
 int end_of_arch(int arch_fd) {
         struct meta_data header = {0};
@@ -77,6 +77,8 @@ int end_of_arch(int arch_fd) {
  * передаем имя файла в write_file_to_arch 
  *
  * Return:
+ * -1: Ошибка открытия файла
+ *  0: Нет ошибок
  */
 int write_to_arch(int arch_fd, char *name) {
         struct stat fstat;
@@ -105,10 +107,14 @@ int write_to_arch(int arch_fd, char *name) {
  * @arch_fd:            дескриптор архива
  * @file:               имя файла
  * 
- * Читаем метаданные файла ()
- * 
+ * Читаем метаданные файла (имя, размер, тип файла) и сохраняем в header
+ * записываем header в архив, копируем содержимое файла в архив (header.size бит)
  * 
  * Return:
+ * -1: Ошибка записи
+ * -2: Ошибка чтения файла
+ * -3: Ошибка копирования файла в архив
+ *  0: Нет ошибок
  */
 int write_file_to_arch(int arch_fd, char *file) {
         struct meta_data header;
@@ -118,12 +124,16 @@ int write_file_to_arch(int arch_fd, char *file) {
         strcpy(header.name, file);
         header.size = fstat.st_size;
         header.mode = fstat.st_mode;
-        //записываем хэдер
+        /*
+         * Записываем хэдер
+         */
         if (write(arch_fd, &header, sizeof(struct meta_data)) == -1) {
                 perror("Ошибка записи");
                 return -1;
         }
-        //открываем файл, который будем архивировать
+        /*
+         * Открываем файл, который будем архивировать
+         */
         int fd = open(file, O_RDONLY);
         if (fd == -1) {
                 perror("Ошибка открытия файла");
@@ -155,24 +165,30 @@ static int selector(const struct dirent *entry) {
 }
 
 /**
- * sample()
- * @:
+ * write_dir_to_arch() - запись директории в архив
+ * @arch_fd:            дескриптор архива
+ * @dir:                имя директории 
  * 
- * 
+ * Читаем метаданные директории (имя, тип файла, размер = 0) и записываем в header
+ * записываем header в архив, проходим по файлам данной директории 
+ * и рекурсивно их обрабатываем
  * 
  * Return:
+ * -1: Ошибка записи
+ * -2: Ошика открытия директории
+ *  0: Нет ошибок
  */
 int write_dir_to_arch(int arch_fd, char *dir) {
         struct meta_data header = {0};
         struct stat dstat;
-        //формируем хэдер
+        // формируем хэдер
         stat(dir, &dstat);
         strcpy(header.name, dir);
         header.mode = dstat.st_mode;
-        //записываем хэдер
+        // записываем хэдер
         if (write(arch_fd, &header, sizeof(struct meta_data)) == -1) {
                 perror("Ошибка записи");
-                return 1;
+                return -1;
         }
         /*
          * получаем список элеметов уровня dir
@@ -184,51 +200,68 @@ int write_dir_to_arch(int arch_fd, char *dir) {
                 for (cnt = 0; cnt < n; ++cnt) {
                         char path[PATH_MAX];
                         strcpy(path, dir);
-                        //eps[cnt]->d_name - текущий элемент
+                        // eps[cnt]->d_name - текущий элемент
                         strcat(path, eps[cnt]->d_name);
-                        //обрабатываем новый элемент
-                        // (тк может быть как файлом так и папкой)
+                        /*
+                         * обрабатываем новый элемент
+                         * (тк может быть как файлом так и папкой)
+                         */
                         write_to_arch(arch_fd, path);
                 }
-        } else
+        } else {
                 perror("Ошибка открытия директории");
+                return -2;
+                }
 
         return 0;
 }
 
 /**
- * sample()
- * @:
+ * extract_from_arch() - обработка файла для извлечения
+ * @arch_name:          дескриптор архива
  * 
- * 
+ * Проверяем на существование архива, открываем его
+ * последовательно читаем метаданные (header),
+ *
+ * если файл - директория:
+ * передаем дескриптор архива и имя директории в  extract_dir
+ *
+ * если файл - не директория:
+ * передаем имя файла и header в  extract_file
  * 
  * Return:
+ * -1: Ошибка существования файла
+ * -2: Ошибка открытия файла
+ *  0: Нет ошибок
  */
 int extract_from_arch(char *arch_name) {
         int arch_fd;
-        //проверка на существование архива
+        // проверка на существование архива
         if (access(arch_name, F_OK) == -1) {
                 perror("Ошибка существования файла");
-                return 1;
+                return -1;
         }
         arch_fd = open(arch_name, O_RDONLY);
         if (arch_fd == -1) {
                 perror("Ошибка открытия файла");
-                return 2;
+                return -2;
         }
 
         struct meta_data header;
-        ssize_t len;
-        // обрабатываем файлы
-        while ((len = read(arch_fd, &header, sizeof(struct meta_data))) > 0) {
+        ssize_t len = read(arch_fd, &header, sizeof(struct meta_data));
+        /* 
+         * обрабатываем файлы
+         */
+        while (len > 0) {
+                // проверка на конец архива (конечный header)
                 if (header.size == 0 && strlen(header.name) == 0) break;
-                //проверка на конец архива
                 printf("Извлечение: %s\n", header.name);
                 if (S_ISDIR(header.mode)) {
                         extract_dir(arch_fd, header.name);
                 } else {
                         extract_file(arch_fd, header);
                 }
+                len = read(arch_fd, &header, sizeof(struct meta_data));
         }
 
         close(arch_fd);
@@ -236,12 +269,15 @@ int extract_from_arch(char *arch_name) {
 }
 
 /**
- * sample()
- * @:
+ * extract_dir() - извлечение директории
+ * @arch_fd:    дескриптор архива
+ * @name:       имя директории
  * 
- * 
+ * Проверяем существование папки, создаем папку
  * 
  * Return:
+ * -1: Ошибка создания папки
+ *  0: Нет ошибок
  */
 int extract_dir(int arch_fd, char *name) {
         if (access(name, F_OK) == 0) {
@@ -256,12 +292,17 @@ int extract_dir(int arch_fd, char *name) {
 }
 
 /**
- * sample()
- * @:
+ * extract_file() - извлечение файла (не директории)
+ * @arch_fd:    дескриптор архива
+ * @header:     метаданные файла
  * 
- * 
+ * Проверяем существование файла, спрашиваем о перезаписи
+ * создаем файл, копируем в него данные из архива, согласно header
+ * (в данном случае size бит данных)
  * 
  * Return:
+ * -1: Отказ пользователя в перезаписи
+ *  0: Нет ошибок
  */
 int extract_file(int arch_fd, struct meta_data header) {
         char *name = header.name;
@@ -281,7 +322,7 @@ int extract_file(int arch_fd, struct meta_data header) {
                                 //последущая разархивация невозможна
                                 abort();
                         }
-                        return 1;
+                        return -1;
                 }
         }
         //создаем или перезаписываем файл
