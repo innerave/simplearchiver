@@ -90,16 +90,16 @@ int write_to_arch(int arch_fd, char *name) {
                 perror("Ошибка открытия файла");
                 return -1;
         }
-        //смотрим если директория
+        // смотрим если директория
         if (S_ISDIR(fstat.st_mode)) {
                 char path[PATH_MAX];
                 strcpy(path, name);
-                //дописываем путь до нужного формата
+                // дописываем путь до нужного формата
                 if (path[strlen(name) - 1] != '/') strcat(path, "/");
-                //записываем директорию
+                // записываем директорию
                 write_dir_to_arch(arch_fd, path);
         } else {
-                //записываем файл
+                // записываем файл
                 write_file_to_arch(arch_fd, name);
         }
         return 0;
