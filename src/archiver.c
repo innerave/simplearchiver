@@ -284,7 +284,7 @@ int extract_dir(int arch_fd, char *name) {
         }
         if (mkdir(name, DIR_MODE) == -1) {
                 perror("Ошибка создания папки");
-                return 1;
+                return -1;
         }
         return 0;
 }
@@ -299,7 +299,7 @@ int extract_dir(int arch_fd, char *name) {
  * (в данном случае size бит данных)
  *
  * Возвращает:
- * -1: Отказ пользователя в перезаписи
+ * -1: Ошибка чтения архива
  *  0: Успех
  */
 int extract_file(int arch_fd, struct meta_data header) {
